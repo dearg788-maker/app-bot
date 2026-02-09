@@ -6,9 +6,10 @@ from PIL import Image, ImageDraw, ImageFont
 from telegram import Update, InputSticker
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")  # ← التوكن من Render
-WATERMARK = "@iraq_viip"
+# ⚠️ التوكن داخل الكود (غير آمن – بناءً على طلبك)
+BOT_TOKEN = "8594603634:AAFYsUj-nG92jDMfo6358Ho0Stl_EOUj2Zk"
 
+WATERMARK = "@iraq_viip"
 TEMP_DIR = "temp"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
@@ -18,7 +19,6 @@ def fingerprint(user_id: int) -> str:
 
 def protect_image(img: Image.Image, user_id: int) -> Image.Image:
     draw = ImageDraw.Draw(img)
-
     try:
         font = ImageFont.truetype("arial.ttf", 28)
     except:
@@ -34,7 +34,7 @@ def protect_image(img: Image.Image, user_id: int) -> Image.Image:
         font=font
     )
 
-    # بصمة مخفية
+    # بصمة مخفية بسيطة
     for i in range(0, 512, 64):
         img.putpixel((i, i), (255, 255, 255, 1))
 
@@ -48,48 +48,43 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pack_name = f"iraq_viip_{user.id}_by_{bot_username}"
     pack_title = "@iraq_viip | Private Stickers"
 
-    output_path = None
-
-    # صور
+    # 🖼️ صور
     if update.message.photo:
         file = await update.message.photo[-1].get_file()
-        input_path = f"{TEMP_DIR}/input_img"
-        output_path = f"{TEMP_DIR}/sticker.webp"
+        in_path = f"{TEMP_DIR}/input_img"
+        out_path = f"{TEMP_DIR}/sticker.webp"
+        await file.download_to_drive(in_path)
 
-        await file.download_to_drive(input_path)
-
-        img = Image.open(input_path).convert("RGBA")
+        img = Image.open(in_path).convert("RGBA")
         side = min(img.size)
         img = img.crop((0, 0, side, side)).resize((512, 512))
         img = protect_image(img, user.id)
-        img.save(output_path, "WEBP")
+        img.save(out_path, "WEBP")
 
-    # فيديو / GIF
+    # 🎞️ فيديو / GIF
     elif update.message.video or update.message.animation:
         media = update.message.video or update.message.animation
         file = await media.get_file()
-
-        input_path = f"{TEMP_DIR}/input_video"
-        output_path = f"{TEMP_DIR}/sticker.webm"
-
-        await file.download_to_drive(input_path)
+        in_path = f"{TEMP_DIR}/input_video"
+        out_path = f"{TEMP_DIR}/sticker.webm"
+        await file.download_to_drive(in_path)
 
         subprocess.run([
             "ffmpeg",
             "-y",
-            "-i", input_path,
+            "-i", in_path,
             "-vf", "scale=512:512",
             "-t", "3",
             "-an",
             "-c:v", "libvpx-vp9",
-            output_path
+            out_path
         ], check=True)
 
     else:
         return
 
     sticker = InputSticker(
-        sticker=open(output_path, "rb"),
+        sticker=open(out_path, "rb"),
         emoji_list=["🔥"]
     )
 
@@ -97,12 +92,15 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await bot.add_sticker_to_set(user.id, pack_name, sticker)
     except:
         await bot.create_new_sticker_set(
-            user.id, pack_name, pack_title, [sticker]
+            user.id,
+            pack_name,
+            pack_title,
+            [sticker]
         )
 
     await update.message.reply_text(
-        f"✅ تم الإضافة\n"
-        f"📦 حزمتك:\n"
+        f"✅ تم إضافة الملصق\n"
+        f"📦 حزمتك الخاصة:\n"
         f"https://t.me/addstickers/{pack_name}"
     )
 
@@ -114,7 +112,7 @@ def main():
             handle_media
         )
     )
-    print("🤖 Bot running 24/7 on Render (Polling)")
+    print("🤖 Bot is running (Polling)")
     app.run_polling()
 
 if __name__ == "__main__":
